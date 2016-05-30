@@ -1,0 +1,3 @@
+[submodule "tests/magery-tests"]
+	path = tests/magery-tests
+	url = https://github.com/caolan/magery-tests.git
