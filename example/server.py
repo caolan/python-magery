@@ -18,14 +18,16 @@ data = {
 # auto-incrementing id counter
 next_id = 2
 
-def addComment(text):
+
+def add_comment(text):
     global next_id
     comment = {'id': next_id, 'text': text}
     data['comments'].append(comment)
     next_id += 1
     return comment
 
-def removeComment(id):
+
+def remove_comment(id):
     data['comments'] = [c for c in data['comments'] if c['id'] != id]
 
 
@@ -35,18 +37,19 @@ def removeComment(id):
 app = Flask(__name__, static_url_path='/static')
 
 # load template
-templates = magery.loadFile('static/template.html')
+templates = magery.compile_templates('templates/example.html')
+print(templates)
 
 @app.route("/")
 def index():
     if request.accept_mimetypes.best == 'application/json':
         return json.dumps(data)
     else:
-        return magery.render_to_string(templates, 'page', data)
+        return templates['page'].render_to_string(data)
 
 @app.route("/create", methods=['POST'])
 def create():
-    comment = addComment(request.form['text'])
+    comment = add_comment(request.form['text'])
     if request.accept_mimetypes.best == 'application/json':
         return json.dumps({'id': comment['id']})
     else:
@@ -54,7 +57,7 @@ def create():
 
 @app.route("/remove/<path:id>", methods=['POST'])
 def remove(id):
-    removeComment(int(id))
+    remove_comment(int(id))
     if request.accept_mimetypes.best == 'application/json':
         return json.dumps({'ok': True})
     else:

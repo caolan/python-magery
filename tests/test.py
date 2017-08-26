@@ -2,23 +2,24 @@ from glob import glob
 import unittest
 import json
 import os
-import io
 import magery
 import html5lib
 from codecs import open
 
+from lxml.doctestcompare import LXMLOutputChecker
+from doctest import Example
 
-def normalize_html(source):
-    out = io.StringIO()
-    tree = html5lib.parse(source, treebuilder='dom')
-    walker = html5lib.getTreeWalker('dom')
-    stream = walker(tree)
-    s = html5lib.serializer.HTMLSerializer()
-    for txt in s.serialize(stream):
-        out.write(txt)
-    result = out.getvalue()
-    out.close()
-    return result
+
+class LHTML5OutputChecker(LXMLOutputChecker):
+    def get_default_parser(self):
+        return html5lib.parse
+
+
+def assert_html_equal(got, want):
+    checker = LHTML5OutputChecker()
+    if not checker.check_output(want, got, 0):
+        message = checker.output_difference(Example("", want), got, 0)
+        raise AssertionError(message)
 
 
 class DynamicClassBase(unittest.TestCase):
@@ -38,7 +39,7 @@ def make_test_function(description, path):
         data = json.loads(data_content)
         templates = magery.compile_templates(templatefile)
         result = templates['main'].render_to_string(data)
-        self.assertEqual(normalize_html(result), normalize_html(expected))
+        assert_html_equal(result, expected)
     return test
 
 

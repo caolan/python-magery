@@ -1,72 +1,40 @@
-// The application can be whatever structure you like,
-// I've tried to demonstrate with something fairly generic.
+var templates = Magery.compileTemplates();
 
-function init(source, data) {
-
-    var templates = Magery.loadTemplates(source);
-    var container = document.getElementById('container');
-    var state = data;
-
-    // add a comment to the page
-    function add(id, text) {
-        state.comments.push({id: id, text: text});
-    }
-
-    // remove a comment from the page
-    function remove(id) {
-        state.comments = state.comments.filter(function (c) {
-            return c.id !== id;
-        });
-    }
-
-    // patch the page with the latest state
-    function update() {
-        Magery.patch(templates, 'main', container, state);
-    }
-
-    container.dispatch = function (name, event, context, path) {
-        switch (name) {
-            case 'submitComment':
-                event.preventDefault();
-                var value = state.input;
-                if (value) {
-                    request.post(
-                        {uri: '/create', form: {text: value}, json: true},
-                        function (err, res, body) {
-                            add(body.id, value);
-                            state.input = '';
-                            update();
-                        });
-                }
-                break;
-            case 'updateInput':
-                state.input = event.target.value;
-                update();
-                break;
-            case 'removeComment':
-                event.preventDefault();
-                request.post(
-                    {uri: '/remove/' + context.id, json: true},
-                    function (err, res, body) {
-                        remove(context.id);
-                        update();
-                    });
-                break;
-            default:
-                console.warn('Unhandled event: ' + name);
+// when a template renders another template, that also needs to be bound?
+// NOTE: only embedded templates will be able to call bindAll()
+templates['page'].bindAll({
+    // what if each elemnent has it's own this.data but all events are
+    // 'global' and can be bound by any template/widget? adding
+    // foo.bar style namespacing support might make this easier to
+    // handle - e.g. page: {removeComment: ...}, global: {foo: ...}
+    page: {
+        removeComment: function (id) {
+            this.data.comments = this.data.comments.filter(function (comment) {
+                return comment.id !== id;
+            });
+        },
+        submitComment: function (txt) {
+            this.data.comments.push({id: Math.random(), text: txt});
+        },
+        updateInput: function (event) {
+            this.data.input = event.target.value;
         }
-    };
+    },
+    
+    // BUT what to do about things like widget.clearInput() which
+    // might clear all widgets, do we need to differentiate between
+    // global and local events afterall?
+    global: {
+    },
+    clearInput: function () {
+    }
 
-    // patch using initial data
-    update();
-}
+    // see: https://www.npmjs.com/package/@polymer/iron-signals
+    // To receive a signal, listen for iron-signal-<name> event on a iron-signals element.
+    
+    // and: https://www.polymer-project.org/1.0/docs/devguide/events
+    // can event bubbling help with shared events?
 
-
-// fetch templates
-request.get('/static/template.html', function (err, res, template) {
-    // get JSON data for the page
-    request.get({uri: '/', json: true}, function (err, res, data) {
-        // initialize application
-        init(template, data);
-    });
+    // DON'T NEED TO SOLVE THESE RIGHT NOW
+    
 });
