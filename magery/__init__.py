@@ -12,9 +12,22 @@ document = impl.createDocument(None, "some_tag", None)
 def write_node(node, out):
     walker = html5lib.getTreeWalker("dom")
     stream = walker(node)
-    s = html5lib.serializer.HTMLSerializer()
+    s = html5lib.serializer.HTMLSerializer(
+        quote_attr_values='always',
+        minimize_boolean_attributes=False,
+        use_best_quote_char=True,
+        omit_optional_tags=False
+    )
     for txt in s.serialize(stream):
         out.write(txt)
+
+
+def make_template_tag(embedded):
+    tmpl = document.createElement('template')
+    tmpl.setAttribute(u'class', 'magery-templates')
+    for node in embedded.values():
+        tmpl.appendChild(node)
+    return tmpl
 
 
 class Template():
@@ -23,14 +36,12 @@ class Template():
         self.node = node
 
     def write(self, data, out):
+        out.write(u'<!DOCTYPE html>\n')
         embedded = {}
         root = self.render(data, embedded=embedded)
         write_node(root, out)
-        template_tag = document.createElement('template')
         if embedded:
-            for node in embedded.values():
-                template_tag.appendChild(node)
-            write_node(template_tag, out)
+            write_node(make_template_tag(embedded), out)
 
     def render_to_string(self, data):
         out = io.StringIO()
@@ -113,11 +124,12 @@ def compile_expand_vars(source):
 
 def compile_bool_test(source):
     expand = compile_expand_vars(source)
+    if expand:
+        def expand2(data):
+            return is_truthy(expand(data))
+        return expand2
+    return lambda data: True
 
-    def expand2(data):
-        return is_truthy(expand(data))
-
-    return expand2
 
 def compile_node(node, templates):
     if node.nodeType == minidom.Node.TEXT_NODE:
@@ -128,7 +140,7 @@ def compile_node(node, templates):
         return compile_element(node, templates)
 
 
-def expand_children(data, parent, inner):
+def expand_children(data, parent, inner, embedded):
     if inner:
         inner(parent)
 
@@ -145,7 +157,7 @@ def compile_text(txt):
 skipped_attrs = ('data-embed', 'data-each', 'data-if', 'data-unless')
 
 # TODO: add remaining boolean attributes
-boolean_attrs = ('selected')
+boolean_attrs = ('selected', 'autofocus')
 
 
 def compile_element(node, templates):
@@ -159,7 +171,7 @@ def compile_element(node, templates):
             attrs[u'data-bind'] = compile_expand_vars(v)
         elif k in boolean_attrs:
             attrs[k] = compile_bool_test(v)
-        elif k not in skipped_attrs:
+        elif k not in skipped_attrs and not k.startswith('on'):
             attrs[k] = compile_expand_vars(v)
 
     def render(data, parent=None, inner=None, embedded=None):
@@ -170,7 +182,7 @@ def compile_element(node, templates):
 
             def inner2(parent):
                 for child in children:
-                    child(data, parent, inner)
+                    child(data, parent, inner, embedded)
             return templates[tag].render(data2, parent, inner2, embedded)
         else:
             el = document.createElement(tag)
@@ -181,10 +193,13 @@ def compile_element(node, templates):
                 else:
                     el.setAttribute(k, to_string(v(data)))
             for child in children:
-                child(data, el, inner)
+                child(data, el, inner, embedded)
+            if embedded and tag == 'body':
+                template_tag = make_template_tag(embedded)
+                el.appendChild(template_tag)
+                embedded.clear()
             if parent:
                 parent.appendChild(el)
-            # if not parent or tag == 'body':
             return el
 
     if node.getAttribute('data-embed') == 'true':
@@ -202,7 +217,7 @@ def compile_element(node, templates):
 
 def compile_embed(node, render):
     def render2(data, parent=None, inner=None, embedded=None):
-        el = render(data, parent, inner)
+        el = render(data, parent, inner, embedded)
         el.setAttribute(
             u'data-context',
             json.dumps(data, separators=(',', ':'))

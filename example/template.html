@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html data-template="page">
+    <head>
+        <title>Comments</title>
+    </head>
+    <body>
+        <div id="container" data-template="main" data-embed="true">
+            <form method="post" action="/create" onsubmit="submitComment(event, input)">
+                <fieldset disabled="{{formDisabled}}">
+                    <input autofocus
+                           type="text"
+                           name="text"
+                           data-managed="true"
+                           oninput="updateInput(event)"
+                           value="{{input}}">
+                    <button type="submit">Add</button>
+                </fieldset>
+            </form>
+            <ul>
+                <li data-each="comment in comments" data-key="{{comment.id}}">
+                    {{comment.text}}
+                    <form method="post"
+                          action="/remove/{{comment.id}}"
+                          onsubmit="submitRemoveComment(event, comment.id)">
+                        <button type="submit">Delete</button>
+                    </form>
+                </li>
+            </ul>
+        </div>
+        <script src="static/magery.min.js"></script>
+        <script src="static/app.js"></script>
+    </body>
+</html>

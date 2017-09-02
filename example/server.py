@@ -37,7 +37,7 @@ def remove_comment(id):
 app = Flask(__name__, static_url_path='/static')
 
 # load template
-templates = magery.compile_templates('templates/example.html')
+templates = magery.compile_templates('template.html')
 print(templates)
 
 @app.route("/")
@@ -49,9 +49,10 @@ def index():
 
 @app.route("/create", methods=['POST'])
 def create():
-    comment = add_comment(request.form['text'])
+    text = request.form['text']
+    comment = add_comment(text)
     if request.accept_mimetypes.best == 'application/json':
-        return json.dumps({'id': comment['id']})
+        return json.dumps({'ok': True, 'id': comment['id'], 'text': text})
     else:
         return redirect('/')
 
