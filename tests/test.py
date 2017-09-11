@@ -50,7 +50,7 @@ if __name__ == '__main__':
         os.chdir(d)
 
     # create a test function for each directory in portable test suite
-    for filename in glob('magery-tests/base/valid/*'):
+    for filename in glob('magery-tests/valid/*'):
         basename = os.path.basename(filename)
 
         test_func = make_test_function(basename, filename)

@@ -156,8 +156,30 @@ def compile_text(txt):
 
 skipped_attrs = ('data-embed', 'data-each', 'data-if', 'data-unless')
 
-# TODO: add remaining boolean attributes
-boolean_attrs = ('selected', 'autofocus')
+boolean_attrs = (
+    'allowfullscreen',
+    'async',
+    'autofocus',
+    'autoplay',
+    'capture',
+    'checked',
+    'controls',
+    'default',
+    'defer',
+    'disabled',
+    'formnovalidate',
+    'hidden',
+    'itemscope',
+    'loop',
+    'multiple',
+    'muted',
+    'novalidate',
+    'open',
+    'readonly',
+    'required',
+    'reversed',
+    'selected',
+)
 
 
 def compile_element(node, templates):
