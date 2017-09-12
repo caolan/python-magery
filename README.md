@@ -18,41 +18,39 @@ pip install magery
 import magery
 ```
 
-### load(source)
+### compile_templates(filename, templates=None)
 
-Parses templates from the string `source`, returns a dictionary of
-templates (each an individual #define block).
+Parses templates from `filename`, returns a dictionary of templates.
+If `templates` is not `None` it will extend the existing templates
+dictionary instead of returning a new one.
 
 ```python
-templates = magery.load('{{#define app}} Hello, {{name}}! {{/define}}')
+templates = magery.compile_templates('./template.html')
 ```
 
-### loadFile(filename)
+### Template.render\_to\_string(data)
 
-Read file as utf-8 and return parsed templates.
+Render a compiled template using `data`, and return the output as a
+string.
 
 ```python
-templates = magery.loadFile('./template.html')
+templates = magery.compile_templates('./template.html')
+
+data = {'name': 'world'}
+templates['app'].render_to_string(data);
 ```
 
-### render\_to\_string(templates, name, data)
+### Template.write(data, out)
 
-Render the named template in the `templates` dictionary using `data` and
-return the output as a string.
-
-```python
-html = magery.render_to_string(templates, 'app', {'name': 'world'})
-```
-
-### render\_to\_stream(templates, name, data, output):
-
-Render the named template in the `templates` dictionary using `data` and
-write the result to the `output` IO stream.
+Render a compile template using `data`, and write the result to the IO
+stream `out`.
 
 ```python
-outfile = open('output.html', 'w', encoding='utf-8')
-magery.render_to_stream(templates, 'app', {'name': 'world'}, outfile)
-outfile.close()
+templates = magery.compile_templates('./template.html')
+
+with open('output.html', 'w', encoding='utf-8') as f:
+    data = {'name': 'world'}
+    templates['app'].write(data, f);
 ```
 
 [magery]: https://github.com/caolan/magery/

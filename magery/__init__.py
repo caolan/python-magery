@@ -44,10 +44,9 @@ class Template():
             write_node(make_template_tag(embedded), out)
 
     def render_to_string(self, data):
-        out = io.StringIO()
-        self.write(data, out)
-        result = out.getvalue() + "\n"
-        out.close()
+        with io.StringIO() as out:
+            self.write(data, out)
+            result = out.getvalue() + "\n"
         return result
 
 
