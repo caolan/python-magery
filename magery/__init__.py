@@ -22,14 +22,6 @@ def write_node(node, out):
         out.write(txt)
 
 
-def make_template_tag(embedded):
-    tmpl = document.createElement('template')
-    tmpl.setAttribute(u'class', 'magery-templates')
-    for node in embedded.values():
-        tmpl.appendChild(node)
-    return tmpl
-
-
 class Template():
     def __init__(self, node, render):
         self.render = render
@@ -37,11 +29,8 @@ class Template():
 
     def write(self, data, out):
         out.write(u'<!DOCTYPE html>\n')
-        embedded = {}
-        root = self.render(data, embedded=embedded)
+        root = self.render(data)
         write_node(root, out)
-        if embedded:
-            write_node(make_template_tag(embedded), out)
 
     def render_to_string(self, data):
         with io.StringIO() as out:
@@ -139,7 +128,7 @@ def compile_node(node, templates):
         return compile_element(node, templates)
 
 
-def expand_children(data, parent, inner, embedded):
+def expand_children(data, parent, inner):
     if inner:
         inner(parent)
 
@@ -147,7 +136,7 @@ def expand_children(data, parent, inner, embedded):
 def compile_text(txt):
     expand = compile_expand_vars(txt)
 
-    def render(data, parent, inner=None, embedded=None):
+    def render(data, parent, inner=None):
         node = document.createTextNode(to_string(expand(data)))
         parent.appendChild(node)
     return render
@@ -195,16 +184,16 @@ def compile_element(node, templates):
         elif k not in skipped_attrs and not k.startswith('on'):
             attrs[k] = compile_expand_vars(v)
 
-    def render(data, parent=None, inner=None, embedded=None):
+    def render(data, parent=None, inner=None):
         if templates.get(tag):
             data2 = {}
             for k, v in attrs.items():
-                data2[k] = compile_lookup(v(data))(data)
+                data2[k] = v(data)
 
             def inner2(parent):
                 for child in children:
-                    child(data, parent, inner, embedded)
-            return templates[tag].render(data2, parent, inner2, embedded)
+                    child(data, parent, inner)
+            return templates[tag].render(data2, parent, inner2)
         else:
             el = document.createElement(tag)
             for k, v in attrs.items():
@@ -214,11 +203,7 @@ def compile_element(node, templates):
                 else:
                     el.setAttribute(k, to_string(v(data)))
             for child in children:
-                child(data, el, inner, embedded)
-            if embedded and tag == 'body':
-                template_tag = make_template_tag(embedded)
-                el.appendChild(template_tag)
-                embedded.clear()
+                child(data, el, inner)
             if parent:
                 parent.appendChild(el)
             return el
@@ -237,14 +222,12 @@ def compile_element(node, templates):
 
 
 def compile_embed(node, render):
-    def render2(data, parent=None, inner=None, embedded=None):
-        el = render(data, parent, inner, embedded)
+    def render2(data, parent=None, inner=None):
+        el = render(data, parent, inner)
         el.setAttribute(
             u'data-context',
             json.dumps(data, separators=(',', ':'))
         )
-        if embedded is not None:
-            embedded[node.getAttribute('data-template')] = node
         return el
     return render2
 
@@ -260,18 +243,18 @@ def is_truthy(x):
 def compile_if(node, render):
     get_value = compile_lookup(node.getAttribute('data-if'))
 
-    def render2(data, parent, inner=None, embedded=None):
+    def render2(data, parent, inner=None):
         if is_truthy(get_value(data)):
-            parent.appendChild(render(data, parent, inner, embedded))
+            parent.appendChild(render(data, parent, inner))
     return render2
 
 
 def compile_unless(node, render):
     get_value = compile_lookup(node.getAttribute('data-unless'))
 
-    def render2(data, parent, inner=None, embedded=None):
+    def render2(data, parent, inner=None):
         if is_falsy(get_value(data)):
-            parent.appendChild(render(data, parent, inner, embedded))
+            parent.appendChild(render(data, parent, inner))
     return render2
 
 
@@ -284,13 +267,13 @@ def compile_each(node, render):
     name = parts[0]
     get_items = compile_lookup(parts[1])
 
-    def render2(data, parent, inner=None, embedded=None):
+    def render2(data, parent, inner=None):
         items = get_items(data)
         if type(items) != list or len(items) == 0:
             return
         for item in items:
             data[name] = item
-            render(data, parent, inner, embedded)
+            render(data, parent, inner)
     return render2
 
 
