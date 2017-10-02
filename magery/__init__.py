@@ -4,6 +4,7 @@ import html5lib
 import json
 import io
 import re
+import sys
 
 impl = minidom.getDOMImplementation()
 document = impl.createDocument(None, "some_tag", None)
@@ -39,18 +40,34 @@ class Template():
         return result
 
 
-def to_string(x):
-    if x is None:
-        return ''
-    elif type(x) == str or type(x) == unicode:
-        return x
-    elif type(x) == bool:
-        return 'true' if x else 'false'
-    elif type(x) == int or type(x) == float:
-        return x.__str__()
-    elif type(x) == list:
-        return ','.join([to_string(y) for y in x]) if x else ''
-    return '[object Object]'
+if sys.version_info >= (3, 0, 0):
+    # for Python 3
+    def to_string(x):
+        if x is None:
+            return ''
+        elif type(x) == str:
+            return x
+        elif type(x) == bool:
+            return 'true' if x else 'false'
+        elif type(x) == int or type(x) == float:
+            return x.__str__()
+        elif type(x) == list:
+            return ','.join([to_string(y) for y in x]) if x else ''
+        return '[object Object]'
+else:
+    # for Python 2
+    def to_string(x):
+        if x is None:
+            return ''
+        elif type(x) == str or type(x) == unicode:
+            return x
+        elif type(x) == bool:
+            return 'true' if x else 'false'
+        elif type(x) == int or type(x) == float:
+            return x.__str__()
+        elif type(x) == list:
+            return ','.join([to_string(y) for y in x]) if x else ''
+        return '[object Object]'
 
 
 def compile_lookup(path):
