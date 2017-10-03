@@ -38,7 +38,7 @@ def make_test_function(description, path):
             expected = expected_file.read()
         data = json.loads(data_content)
         templates = magery.compile_templates(templatefile)
-        result = templates['main'].render_to_string(data)
+        result = templates.render_to_string('main', data)
         assert_html_equal(result, expected)
     return test
 
