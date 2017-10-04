@@ -220,10 +220,5 @@ def compile_to_string(filename):
 def compile_templates(filename, templates=None):
     templates = templates or TemplateSet()
     src = compile_to_string(filename)
-    print("========================")
-    print(filename)
-    print("------------------------")
-    print(src)
-    print("------------------------")
     exec(src, {'templates': templates, 'runtime': runtime})
     return templates
