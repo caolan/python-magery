@@ -13,20 +13,15 @@ else:
     from io import StringIO
 
 
-def is_element(node):
-    return node.nodeType == 1
-
-
-def is_text(node):
-    return node.nodeType == 3
-
-
-def is_document(node):
-    return node.nodeType == 9
+ELEMENT_NODE = 1
+TEXT_NODE = 3
+COMMENT_NODE = 8
+DOCUMENT_NODE = 9
+DOCUMENT_TYPE_NODE = 10
 
 
 def is_template_node(node):
-    return is_element(node) and template_name(node)
+    return node.nodeType == ELEMENT_NODE and template_name(node)
 
 
 def template_name(node):
@@ -180,13 +175,15 @@ def compile_text(node, result):
 
 
 def compile_node(node, queue, result, is_root):
-    if is_element(node):
+    if node.nodeType == ELEMENT_NODE:
         compile_element(node, queue, result, is_root)
-    elif is_text(node):
+    elif node.nodeType == TEXT_NODE:
         compile_text(node, result)
-    elif is_document(node):
+    elif node.nodeType == DOCUMENT_NODE:
         for child in node.childNodes:
             compile_node(child, queue, result, is_root)
+    elif node.nodeType in (DOCUMENT_TYPE_NODE, COMMENT_NODE):
+        return
     else:
         raise Exception("Unknown nodeType: %s" % node.nodeType)
 
