@@ -72,9 +72,10 @@ class Collection(object):
 
 
 class Template(Collection):
-    def __init__(self, name):
+    def __init__(self, name, src):
         super(Template, self).__init__()
         self.name = name
+        self.src = src
 
     def __repr__(self):
         return "<Template %s %s>" % (self.name, repr(self.children))
@@ -84,7 +85,11 @@ class Template(Collection):
         block = IndentedIO(result)
         for child in self.children:
             child.to_python(block)
-        result.writelines(['templates.add(%s, fn)\n' % repr(self.name), '\n'])
+        result.writelines([
+            'templates.add(%s, fn, %s)\n' % (
+                repr(self.name), repr(self.src))
+        ])
+        result.writelines(['\n'])
 
 
 class If(Collection):
@@ -181,7 +186,8 @@ class TemplateCall(Collection):
 
         if self.context:
             result.writelines([
-                'runtime.render(templates, %s, {\n' % repr(self.name)
+                'runtime.render(templates, %s, {\n' %
+                attr_value_to_python(self.name)
             ])
             block = IndentedIO(result)
             block.writelines([
@@ -197,13 +203,14 @@ class TemplateCall(Collection):
             if self.children:
                 result.writelines([
                     'runtime.render(templates, %s, data, output, fn)\n' %
-                    repr(self.name)
+                    attr_value_to_python(self.name)
                 ])
             else:
                 result.writelines([
                     'runtime.render(templates, %s, data, output, inner)\n' %
-                    repr(self.name)
+                    attr_value_to_python(self.name)
                 ])
+
 
 class TemplateChildren(object):
     def to_python(self, result):
@@ -216,4 +223,16 @@ class EmbeddedData(object):
     def to_python(self, result):
         result.writelines([
             'output.write(runtime.html_escape(runtime.encode_json(data)))\n'
+        ])
+
+
+class TemplateEmbed(object):
+    def __init__(self, name):
+        self.name = name
+
+    def to_python(self, result):
+        result.writelines([
+            'output.write("<template class=\\"magery-templates\\">\\n")\n',
+            'output.write(runtime.source(templates, %s))\n' % repr(self.name),
+            'output.write("\\n</template>")\n'
         ])

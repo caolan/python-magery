@@ -1,10 +1,11 @@
 import re
 import collections
 import html5lib
+from xml.dom import minidom
 from . import runtime
 from .TemplateSet import TemplateSet
 from .AST import Collection, Template, Raw, Variable, If, Each, Unless, \
-    TemplateCall, TemplateChildren, EmbeddedData
+    TemplateCall, TemplateChildren, EmbeddedData, TemplateEmbed
 
 import sys
 if sys.version_info[0] < 3:
@@ -18,6 +19,28 @@ TEXT_NODE = 3
 COMMENT_NODE = 8
 DOCUMENT_NODE = 9
 DOCUMENT_TYPE_NODE = 10
+
+impl = minidom.getDOMImplementation()
+document = impl.createDocument(None, "some_tag", None)
+
+
+def write_node(node, out):
+    walker = html5lib.getTreeWalker("dom")
+    stream = walker(node)
+    s = html5lib.serializer.HTMLSerializer(
+        quote_attr_values='always',
+        minimize_boolean_attributes=False,
+        use_best_quote_char=True,
+        omit_optional_tags=False
+    )
+    for txt in s.serialize(stream):
+        out.write(txt)
+
+
+def outerHTML(node):
+    result = StringIO()
+    write_node(node, result)
+    return result.getvalue()
 
 
 def is_template_node(node):
@@ -91,7 +114,7 @@ SELF_CLOSING_TAGS = [
 
 def compile_element(node, queue, result, is_root):
     if not is_root and is_template_node(node):
-        result.append(TemplateCall(template_name(node), None))
+        result.append(TemplateCall([Raw(template_name(node))], None))
         queue.append(node)
         return
 
@@ -99,6 +122,10 @@ def compile_element(node, queue, result, is_root):
 
     if tag == 'template-children':
         result.append(TemplateChildren())
+        return
+    elif tag == 'template-embed':
+        result.append(TemplateEmbed(node.getAttribute('template')))
+        return
 
     if node.getAttribute('data-each'):
         value = node.getAttribute('data-each')
@@ -123,13 +150,18 @@ def compile_element(node, queue, result, is_root):
         result.append(block)
         result = block
 
-    if node.tagName not in HTML_TAGS:
+    if node.tagName not in HTML_TAGS or tag == 'template-call':
         context = {}
         for name, value in node.attributes.items():
-            if name not in SKIPPED_ATTRIBUTES:
+            if name not in SKIPPED_ATTRIBUTES or name.startswith('on'):
                 context[name] = []
                 compile_variables(value, context[name])
-        block = TemplateCall(node.tagName.lower(), context)
+        tmpl_name = [Raw(node.tagName.lower())]
+        if tag == 'template-call':
+            tmpl_raw = node.getAttribute('template')
+            tmpl_name = []
+            compile_variables(tmpl_raw, tmpl_name)
+        block = TemplateCall(tmpl_name, context)
         result.append(block)
         for child in node.childNodes:
             compile_node(child, queue, block, False)
@@ -195,7 +227,7 @@ def compile_tree(tree, output):
     compile_node(tree, queue, ignored, False)
     while len(queue) > 0:
         node = queue.popleft()
-        template = Template(template_name(node))
+        template = Template(template_name(node), outerHTML(node))
         compile_node(node, queue, template, True)
         result.append(template)
     result.collapse()

@@ -8,12 +8,17 @@ else:
 class TemplateSet(object):
     def __init__(self):
         self._templates = {}
+        self._raw = {}
 
-    def add(self, name, render):
+    def add(self, name, render, src):
         self._templates[name] = render
+        self._raw[name] = src
 
     def has(self, name):
         return name in self._templates
+
+    def get_source(self, name):
+        return self._raw[name]
 
     def render(self, name, data, output, inner=None):
         self._templates[name](self, data, output, inner)

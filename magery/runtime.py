@@ -48,3 +48,9 @@ def render(templates, name, data, output, inner):
 
 def encode_json(data):
     return json.dumps(data, separators=(',', ':'))
+
+
+def source(templates, name):
+    if templates.has(name):
+        return templates.get_source(name)
+    return ''
