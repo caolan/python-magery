@@ -3,12 +3,12 @@ from distutils.core import setup
 setup(
     name='magery',
     packages=['magery'],
-    version='0.0.4',
+    version='0.0.5',
     description='Magery templating library',
     author='Caolan McMahon',
     author_email='caolan.mcmahon@gmail.com',
     url='https://github.com/caolan/python-magery',
-    download_url='https://github.com/caolan/python-magery/tarball/0.0.4',
+    download_url='https://github.com/caolan/python-magery/tarball/0.0.5',
     keywords=['html', 'templating', 'web'],
     classifiers=[
         # How mature is this project? Common values are
