@@ -5,7 +5,7 @@ import json
 import magery
 
 
-#### Data store #####
+# --- Data store ---
 
 # keep data in memory for this demo
 data = {
@@ -31,21 +31,22 @@ def remove_comment(id):
     data['comments'] = [c for c in data['comments'] if c['id'] != id]
 
 
-#### Web server ####
+# --- Web server ----
 
 # set the project root directory as the static folder, you can set others.
 app = Flask(__name__, static_url_path='/static')
 
 # load template
 templates = magery.compile_templates('template.html')
-print(templates)
+
 
 @app.route("/")
 def index():
     if request.accept_mimetypes.best == 'application/json':
         return json.dumps(data)
     else:
-        return templates['page'].render_to_string(data)
+        return templates.render_to_string('page', data)
+
 
 @app.route("/create", methods=['POST'])
 def create():
@@ -55,6 +56,7 @@ def create():
         return json.dumps({'ok': True, 'id': comment['id'], 'text': text})
     else:
         return redirect('/')
+
 
 @app.route("/remove/<path:id>", methods=['POST'])
 def remove(id):
