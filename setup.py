@@ -3,7 +3,7 @@ from distutils.core import setup
 setup(
     name='magery',
     packages=['magery'],
-    version='0.0.5',
+    version='0.0.6',
     description='Magery templating library',
     author='Caolan McMahon',
     author_email='caolan.mcmahon@gmail.com',
