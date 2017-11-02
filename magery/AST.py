@@ -81,7 +81,7 @@ class Template(Collection):
         return "<Template %s %s>" % (self.name, repr(self.children))
 
     def to_python(self, result):
-        result.writelines(['def fn(templates, data, output, inner):\n'])
+        result.writelines(['def fn(templates, data, output, inner, embed_data):\n'])
         block = IndentedIO(result)
         for child in self.children:
             child.to_python(block)
@@ -152,13 +152,18 @@ class Each(Collection):
 
 
 class TemplateCall(Collection):
-    def __init__(self, name, context):
+    def __init__(self, name, context, embed_data):
         super(TemplateCall, self).__init__()
         self.name = name
         self.context = context
+        self.embed_data = embed_data
 
     def __repr__(self):
-        return "<TemplateCall %s %s>" % (repr(self.name), repr(self.context))
+        return "<TemplateCall %s %s %s>" % (
+            repr(self.name),
+            repr(self.context),
+            repr(self.embed_data)
+        )
 
     def to_python(self, result):
         def attr_value_to_python(value):
@@ -196,9 +201,13 @@ class TemplateCall(Collection):
             ])
 
             if self.children:
-                result.writelines(['}, output, fn)\n'])
+                result.writelines([
+                    '}, output, fn, %s)\n' % repr(bool(self.embed_data))
+                ])
             else:
-                result.writelines(['}, output, inner)\n'])
+                result.writelines([
+                    '}, output, inner, %s)\n' % repr(bool(self.embed_data))
+                ])
         else:
             if self.children:
                 result.writelines([
@@ -210,6 +219,15 @@ class TemplateCall(Collection):
                     'runtime.render(templates, %s, data, output, inner)\n' %
                     attr_value_to_python(self.name)
                 ])
+
+
+class ConditionalDataEmbed(object):
+    def to_python(self, result):
+        result.writelines(['if embed_data:\n'])
+        block = IndentedIO(result)
+        Raw(' data-context="').to_python(block)
+        EmbeddedData().to_python(block)
+        Raw('"').to_python(block)
 
 
 class TemplateChildren(object):
@@ -232,7 +250,5 @@ class TemplateEmbed(object):
 
     def to_python(self, result):
         result.writelines([
-            'output.write("<template class=\\"magery-templates\\">\\n")\n',
             'output.write(runtime.source(templates, %s))\n' % repr(self.name),
-            'output.write("\\n</template>")\n'
         ])

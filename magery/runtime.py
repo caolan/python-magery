@@ -41,9 +41,9 @@ def each(data, name, path, fn):
             fn(data)
 
 
-def render(templates, name, data, output, inner):
+def render(templates, name, data, output, inner, embed_data=False):
     if templates.has(name):
-        templates.render(name, data, output, inner)
+        templates.render(name, data, output, inner, embed_data)
 
 
 def encode_json(data):

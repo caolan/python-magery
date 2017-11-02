@@ -20,8 +20,8 @@ class TemplateSet(object):
     def get_source(self, name):
         return self._raw[name]
 
-    def render(self, name, data, output, inner=None):
-        self._templates[name](self, data, output, inner)
+    def render(self, name, data, output, inner=None, embed_data=False):
+        self._templates[name](self, data, output, inner, embed_data)
 
     def render_to_string(self, name, data):
         output = StringIO()

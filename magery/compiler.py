@@ -5,7 +5,7 @@ from xml.dom import minidom
 from . import runtime
 from .TemplateSet import TemplateSet
 from .AST import Collection, Template, Raw, Variable, If, Each, Unless, \
-    TemplateCall, TemplateChildren, EmbeddedData, TemplateEmbed
+    TemplateCall, TemplateChildren, EmbeddedData, TemplateEmbed, ConditionalDataEmbed
 
 import sys
 if sys.version_info[0] < 3:
@@ -37,18 +37,10 @@ def write_node(node, out):
         out.write(txt)
 
 
-def outerHTML(node):
+def outer_html(node):
     result = StringIO()
     write_node(node, result)
     return result.getvalue()
-
-
-def is_template_node(node):
-    return node.nodeType == ELEMENT_NODE and template_name(node)
-
-
-def template_name(node):
-    return node.getAttribute('data-template')
 
 
 def compile_variables(value, result):
@@ -69,9 +61,11 @@ def compile_variables(value, result):
 
 
 SKIPPED_ATTRIBUTES = (
+    "data-tagname",
     "data-each",
     "data-if",
     "data-unless",
+    "data-key"
 )
 
 BOOLEAN_ATTRIBUTES = (
@@ -82,29 +76,6 @@ BOOLEAN_ATTRIBUTES = (
     "reversed", "selected",
 )
 
-HTML_TAGS = [
-    "a", "abbr", "acronym", "address", "applet", "area",
-    "article", "aside", "audio", "b", "base", "basefont", "bdi",
-    "bdo", "bgsound", "big", "blink", "blockquote", "body", "br",
-    "button", "canvas", "caption", "center", "cite", "code", "col",
-    "colgroup", "command", "content", "data", "datalist", "dd", "del",
-    "details", "dfn", "dialog", "dir", "div", "dl", "dt", "element",
-    "em", "embed", "fieldset", "figcaption", "figure", "font",
-    "footer", "form", "frame", "frameset", "h1", "h2", "h3", "h4",
-    "h5", "h6", "head", "header", "hgroup", "hr", "html", "i",
-    "iframe", "image", "img", "input", "ins", "isindex", "kbd",
-    "keygen", "label", "legend", "li", "link", "listing", "main",
-    "map", "mark", "marquee", "menu", "menuitem", "meta", "meter",
-    "multicol", "nav", "nobr", "noembed", "noframes", "noscript",
-    "object", "ol", "optgroup", "option", "output", "p", "param",
-    "picture", "plaintext", "pre", "progress", "q", "rp", "rt", "rtc",
-    "ruby", "s", "samp", "script", "section", "select", "shadow",
-    "slot", "small", "source", "spacer", "span", "strike", "strong",
-    "style", "sub", "summary", "sup", "table", "tbody", "td",
-    "template", "textarea", "tfoot", "th", "thead", "time", "title",
-    "tr", "track", "tt", "u", "ul", "var", "video", "wbr", "xmp"
-]
-
 SELF_CLOSING_TAGS = [
     "area", "base", "br", "col", "embed", "hr",
     "img", "input", "keygen", "link", "menuitem", "meta", "param",
@@ -113,12 +84,15 @@ SELF_CLOSING_TAGS = [
 
 
 def compile_element(node, queue, result, is_root):
-    if not is_root and is_template_node(node):
-        result.append(TemplateCall([Raw(template_name(node))], None))
-        queue.append(node)
-        return
-
+    is_component = False
     tag = node.tagName.lower()
+
+    if tag == 'template':
+        if not is_root:
+            queue.append(node)
+            return
+        is_component = True
+        tag = node.getAttribute('data-tagname').lower()
 
     if tag == 'template-children':
         result.append(TemplateChildren())
@@ -150,18 +124,22 @@ def compile_element(node, queue, result, is_root):
         result.append(block)
         result = block
 
-    if node.tagName not in HTML_TAGS or tag == 'template-call':
+    if '-' in node.tagName:
         context = {}
         for name, value in node.attributes.items():
-            if name not in SKIPPED_ATTRIBUTES or name.startswith('on'):
-                context[name] = []
-                compile_variables(value, context[name])
+            if name in SKIPPED_ATTRIBUTES \
+               or name.startswith('on') \
+               or name == 'data-embed':
+                continue
+            context[name] = []
+            compile_variables(value, context[name])
         tmpl_name = [Raw(node.tagName.lower())]
         if tag == 'template-call':
             tmpl_raw = node.getAttribute('template')
             tmpl_name = []
             compile_variables(tmpl_raw, tmpl_name)
-        block = TemplateCall(tmpl_name, context)
+        embed_data = node.getAttribute('data-embed') == 'true'
+        block = TemplateCall(tmpl_name, context, embed_data)
         result.append(block)
         for child in node.childNodes:
             compile_node(child, queue, block, False)
@@ -184,15 +162,18 @@ def compile_element(node, queue, result, is_root):
             # property is always True
             result.append(Raw(' %s' % runtime.html_escape(name)))
         elif name == 'data-embed':
-            result.append(Raw(' data-context="'))
-            result.append(EmbeddedData())
-            result.append(Raw('"'))
+            if value == 'true':
+                result.append(Raw(' data-context="'))
+                result.append(EmbeddedData())
+                result.append(Raw('"'))
         else:
             if name == 'data-template':
                 name = 'data-bind'
             result.append(Raw(' %s="' % runtime.html_escape(name)))
             compile_variables(value, result)
             result.append(Raw('"'))
+    if is_component and node.getAttribute('data-embed') != 'true':
+        result.append(ConditionalDataEmbed())
     result.append(Raw(">"))
 
     for child in node.childNodes:
@@ -227,7 +208,10 @@ def compile_tree(tree, output):
     compile_node(tree, queue, ignored, False)
     while len(queue) > 0:
         node = queue.popleft()
-        template = Template(template_name(node), outerHTML(node))
+        template = Template(
+            node.getAttribute('data-tagname'),
+            outer_html(node)
+        )
         compile_node(node, queue, template, True)
         result.append(template)
     result.collapse()

@@ -38,7 +38,7 @@ def make_test_function(description, path):
             expected = expected_file.read()
         data = json.loads(data_content)
         templates = magery.compile_templates(templatefile)
-        result = templates.render_to_string('main', data)
+        result = templates.render_to_string('app-main', data)
         assert_html_equal(result, expected)
     return test
 
@@ -50,7 +50,7 @@ if __name__ == '__main__':
         os.chdir(d)
 
     # create a test function for each directory in portable test suite
-    for filename in glob('magery-tests/valid/*'):
+    for filename in glob('magery-tests/components/*'):
         basename = os.path.basename(filename)
 
         test_func = make_test_function(basename, filename)
